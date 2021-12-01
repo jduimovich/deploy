@@ -1,5 +1,74 @@
-
+#!/bin/bash
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+# all in one deploy the image passed as a parameter
+
+cat > $SCRIPTDIR/tmp.deployment.yaml <<DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: REPLACE_ME_DEPLOY_NAME
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: REPLACE_ME_APP_LABEL
+  template:
+    metadata:
+      labels:
+        app: REPLACE_ME_APP_LABEL
+    spec: 
+      containers:
+        - name: container-image
+          image: REPLACE_ME_CONTAINER_IMAGENAME
+          resources:
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            httpGet:
+              path: /
+              port: 8080  
+DEPLOYMENT
+
+cat > $SCRIPTDIR/tmp.service.yaml <<SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: container-service 
+spec:
+  selector:
+    app: REPLACE_ME_SVC_APP_SELECTOR
+  ports:
+  - port: 8080
+    targetPort: 8080 
+SERVICE
+
+cat > $SCRIPTDIR/tmp.route.yaml <<ROUTE
+apiVersion: v1
+kind: Service
+metadata:
+  name: container-service 
+spec:
+  selector:
+    app: REPLACE_ME_SVC_APP_SELECTOR
+  ports:
+  - port: 8080
+    targetPort: 8080 
+ROUTE
 
 CONTAINER=$1 
 if [ -z "$CONTAINER" ]
@@ -15,19 +84,20 @@ echo running image $IMAGE at $ROUTE
 
 APP=$ROUTE-app
  
-yq -M e ".metadata.name=\"$ROUTE-deployment\"" $SCRIPTDIR/deployment.yaml  | \
+yq -M e ".metadata.name=\"$ROUTE-deployment\"" $SCRIPTDIR/tmp.deployment.yaml  | \
  yq -M e ".spec.selector.matchLabels.app=\"$APP\"" - |  \
  yq -M e ".spec.template.metadata.labels.app=\"$APP\"" - |  \
  yq -M e ".spec.template.spec.containers[0].image=\"$CONTAINER\"" -  | \
  oc apply -f -
  
-yq -M e ".metadata.name=\"$ROUTE-service\"" $SCRIPTDIR/service.yaml  | \
+yq -M e ".metadata.name=\"$ROUTE-service\"" $SCRIPTDIR/tmp.service.yaml  | \
  yq -M e ".spec.selector.app=\"$APP\"" -  |  \
  oc apply -f - 
  
-yq -M e ".metadata.name=\"$ROUTE\"" $SCRIPTDIR/route.yaml  | \
+yq -M e ".metadata.name=\"$ROUTE\"" $SCRIPTDIR/tmp.route.yaml  | \
  yq -M e ".spec.to.name=\"$ROUTE-service\"" - |  \
  oc apply -f -
 
+rm -rf $SCRIPTDIR/tmp.* 
 RT=$( oc get route $ROUTE  -o yaml | yq e '.spec.host' -)
 echo "Find your app at https://$RT"
