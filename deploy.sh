@@ -1,7 +1,7 @@
 #!/bin/bash
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-# all in one deploy the image passed as a parameter
+#   deploy the image passed as first  parameter
 
 cat > $SCRIPTDIR/tmp.deployment.yaml <<DEPLOYMENT
 apiVersion: apps/v1
