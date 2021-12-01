@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: REPLACE_ME_DEPLOY_NAME
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: REPLACE_ME_APP_LABEL
+  template:
+    metadata:
+      labels:
+        app: REPLACE_ME_APP_LABEL
+    spec: 
+      containers:
+        - name: container-image
+          image: REPLACE_ME_CONTAINER_IMAGENAME
+          resources:
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            httpGet:
+              path: /
+              port: 8080 
